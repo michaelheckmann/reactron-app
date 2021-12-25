@@ -2,72 +2,21 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Hello Electron React!</title>
-    <style>
-      #notification {
-        position: fixed;
-        bottom: 20px;
-        left: 20px;
-        width: 200px;
-        padding: 20px;
-        border-radius: 5px;
-        background-color: white;
-        box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
-      }
-      .hidden {
-        display: none;
-      }
-    </style>
+    <title>Reactron</title>
   </head>
+  <style>
+    .mic {
+      background: red;
+      width: 100vw;
+      height: 50px;
+      position: absolute;
+      top: 0;
+      -webkit-app-region: drag;
+    }
+  </style>
   <body>
-    <div id="version"></div>
-    <div id="notification" class="hidden">
-      <p id="message"></p>
-      <button id="close-button" onClick="closeNotification()">Close</button>
-      <button id="restart-button" onClick="restartApp()" class="hidden">
-        Restart
-      </button>
-    </div>
+    <div class="mic"></div>
     <div id="root"></div>
   </body>
-  <script>
-    window.electron.ipcRenderer.once('ipc-example', (arg) => {
-      // eslint-disable-next-line no-console
-      console.log(arg);
-    });
-
-    const version = document.getElementById('version');
-    window.electron.ipcRenderer.on('app-version', (arg) => {
-      console.log(arg);
-      version.innerText = 'Version ' + arg.version;
-    });
-
-    window.electron.ipcRenderer.myVersion();
-    window.electron.ipcRenderer.myPing();
-
-    const notification = document.getElementById('notification');
-    const message = document.getElementById('message');
-    const restartButton = document.getElementById('restart-button');
-    window.electron.ipcRenderer.on('update-available', () => {
-      window.electron.ipcRenderer.removeAllListeners('update-available');
-      if (message)
-        message.innerText = 'A new update is available. Downloading now...';
-      if (notification) notification.classList.remove('hidden');
-    });
-    window.electron.ipcRenderer.on('update-downloaded', () => {
-      window.electron.ipcRenderer.removeAllListeners('update-downloaded');
-      if (message)
-        message.innerText =
-          'Update Downloaded. It will be installed on restart. Restart now?';
-      if (restartButton) restartButton.classList.remove('hidden');
-      if (notification) notification.classList.remove('hidden');
-    });
-
-    function closeNotification() {
-      if (notification) notification.classList.add('hidden');
-    }
-    function restartApp() {
-      if (notification) window.electron.ipcRenderer.send('restart-app');
-    }
-  </script>
+  <script></script>
 </html>

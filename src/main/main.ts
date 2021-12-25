@@ -1,40 +1,21 @@
-/* eslint global-require: off, no-console: off, promise/always-return: off */
-
-/**
- * This module executes inside of electron's main process. You can start
- * electron renderer process from here and communicate with the other processes
- * through IPC.
- *
- * When running `npm run build` or `npm run build:main`, this file is compiled to
- * `./src/main.js` using webpack. This gives us some performance wins.
- */
 import 'core-js/stable';
 import 'regenerator-runtime/runtime';
 import path from 'path';
-import { app, BrowserWindow, shell, ipcMain } from 'electron';
-import { autoUpdater } from 'electron-updater';
-import log from 'electron-log';
+import {
+  app,
+  BrowserWindow,
+  shell,
+  ipcMain,
+  autoUpdater,
+  dialog,
+} from 'electron';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
 
-export default class AppUpdater {
-  constructor() {
-    log.transports.file.level = 'info';
-    autoUpdater.logger = log;
-    autoUpdater.checkForUpdatesAndNotify();
-  }
-}
-
 let mainWindow: BrowserWindow | null = null;
 
-ipcMain.on('ipc-example', async (event, arg) => {
-  const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
-  console.log(msgTemplate(arg));
-  event.reply('ipc-example', msgTemplate('pong'));
-});
-
 ipcMain.on('app-version', (event) => {
-  event.reply('app-version', { version: app.getVersion() });
+  event.reply('app-version-reply', { version: app.getVersion() });
 });
 
 if (process.env.NODE_ENV === 'production') {
@@ -47,6 +28,10 @@ const isDevelopment =
 
 if (isDevelopment) {
   require('electron-debug')();
+} else {
+  const server = 'https://reactron-update-server.vercel.app/';
+  const url = `${server}/update/${process.platform}/${app.getVersion()}`;
+  autoUpdater.setFeedURL({ url });
 }
 
 const installExtensions = async () => {
@@ -80,9 +65,11 @@ const createWindow = async () => {
     width: 1024,
     height: 728,
     icon: getAssetPath('icon.png'),
+    titleBarStyle: 'hiddenInset',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: true,
+      contextIsolation: false,
     },
   });
 
@@ -97,11 +84,35 @@ const createWindow = async () => {
     } else {
       mainWindow.show();
     }
+
+    autoUpdater.checkForUpdates();
   });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+
+  if (!isDevelopment) {
+    autoUpdater.on('update-downloaded', (_, releaseNotes, releaseName) => {
+      const dialogOpts = {
+        type: 'info',
+        buttons: ['Restart', 'Later'],
+        title: 'Application Update',
+        message: process.platform === 'win32' ? releaseNotes : releaseName,
+        detail:
+          'A new version has been downloaded. Restart the application to apply the updates.',
+      };
+
+      dialog.showMessageBox(dialogOpts).then((returnValue) => {
+        if (returnValue.response === 0) autoUpdater.quitAndInstall();
+      });
+    });
+
+    autoUpdater.on('error', (message) => {
+      console.error('There was a problem updating the application');
+      console.error(message);
+    });
+  }
 
   const menuBuilder = new MenuBuilder(mainWindow);
   menuBuilder.buildMenu();
@@ -111,18 +122,7 @@ const createWindow = async () => {
     event.preventDefault();
     shell.openExternal(url);
   });
-
-  // Remove this if your app does not use auto updates
-  // eslint-disable-next-line
-  new AppUpdater();
 };
-
-autoUpdater.on('update-available', () => {
-  if (mainWindow) mainWindow.webContents.send('update-available');
-});
-autoUpdater.on('update-downloaded', () => {
-  if (mainWindow) mainWindow.webContents.send('update-downloaded');
-});
 
 /**
  * Add event listeners...
@@ -147,10 +147,3 @@ app
     });
   })
   .catch(console.log);
-
-ipcMain.on('app_version', (event) => {
-  event.sender.send('app_version', { version: app.getVersion() });
-});
-ipcMain.on('restart-app', () => {
-  autoUpdater.quitAndInstall();
-});
