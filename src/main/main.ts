@@ -33,6 +33,10 @@ ipcMain.on('ipc-example', async (event, arg) => {
   event.reply('ipc-example', msgTemplate('pong'));
 });
 
+ipcMain.on('app-version', (event) => {
+  event.reply('app-version', { version: app.getVersion() });
+});
+
 if (process.env.NODE_ENV === 'production') {
   const sourceMapSupport = require('source-map-support');
   sourceMapSupport.install();
@@ -78,6 +82,7 @@ const createWindow = async () => {
     icon: getAssetPath('icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: true,
     },
   });
 
@@ -112,6 +117,13 @@ const createWindow = async () => {
   new AppUpdater();
 };
 
+autoUpdater.on('update-available', () => {
+  if (mainWindow) mainWindow.webContents.send('update-available');
+});
+autoUpdater.on('update-downloaded', () => {
+  if (mainWindow) mainWindow.webContents.send('update-downloaded');
+});
+
 /**
  * Add event listeners...
  */
@@ -135,3 +147,10 @@ app
     });
   })
   .catch(console.log);
+
+ipcMain.on('app_version', (event) => {
+  event.sender.send('app_version', { version: app.getVersion() });
+});
+ipcMain.on('restart-app', () => {
+  autoUpdater.quitAndInstall();
+});
